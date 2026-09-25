@@ -6,6 +6,7 @@ import { pinoHttp } from 'pino-http';
 import { corsOrigins } from './config/env';
 import { logger } from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { authRouter } from './modules/auth/auth.routes';
 import { healthRouter } from './modules/health/health.routes';
 
 export function createApp() {
@@ -30,6 +31,7 @@ export function createApp() {
   );
 
   app.use(healthRouter);
+  app.use('/api/auth', authRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
