@@ -1,0 +1,80 @@
+# docker compose up --build
+#   web  → http://localhost:3000
+#   api  → http://localhost:4000  (health: /health)
+#   db   → localhost:5433 (host port 5433 so it never clashes with a local Postgres)
+#
+# Values come from .env (copy .env.example); every one has a safe local default.
+
+name: oi-tesla
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-oitesla}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oitesla}
+      POSTGRES_DB: ${POSTGRES_DB:-oi_tesla}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Creates the oi_tesla_test database used by the integration tests.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+      target: runtime
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-oitesla}:${POSTGRES_PASSWORD:-oitesla}@db:5432/${POSTGRES_DB:-oi_tesla}
+      JWT_SECRET: ${JWT_SECRET:-local-docker-only-secret-change-me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SEED_ON_START: ${SEED_ON_START:-true}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    environment:
+      # The browser calls the API directly, so this is the URL as seen from the host.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Integration + unit tests against the compose database:
+  #   docker compose --profile test run --rm api-test
+  api-test:
+    profiles: ["test"]
+    build:
+      context: ./api
+      target: build
+    environment:
+      NODE_ENV: test
+      TEST_DATABASE_URL: postgresql://${POSTGRES_USER:-oitesla}:${POSTGRES_PASSWORD:-oitesla}@db:5432/oi_tesla_test
+      JWT_SECRET: test-secret-please-change-0123456789
+    command: ["npx", "vitest", "run"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
