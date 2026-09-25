@@ -1,0 +1,271 @@
+// Dhaka Tesla Pool — database schema.
+// Constraints Prisma cannot express (CHECKs, partial unique indexes) live in the
+// SQL migration files; see prisma/migrations/*/migration.sql and docs/design.md §6.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RideStatus {
+  REQUESTED
+  MATCHED
+  DRIVER_ARRIVED
+  STARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PoolStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum FareKind {
+  ESTIMATE
+  QUOTE
+  FINAL
+}
+
+enum PaymentMethod {
+  CASH
+  TESLAPAY
+}
+
+enum ActorType {
+  PASSENGER
+  DRIVER
+  SYSTEM
+}
+
+/// A zone / cluster of the city, e.g. "Banani–Gulshan". Matching only pools
+/// requests whose pickups are in the same zone.
+model Location {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code         String        @unique @db.VarChar(32)
+  name         String        @db.VarChar(80)
+  subLocations SubLocation[]
+
+  @@map("locations")
+}
+
+/// A named pickup / drop-off point with a single centre coordinate.
+model SubLocation {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  locationId String   @map("location_id") @db.Uuid
+  code       String   @unique @db.VarChar(32)
+  name       String   @db.VarChar(80)
+  lat        Float    @db.DoublePrecision
+  lng        Float    @db.DoublePrecision
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  driversHere          Driver[]            @relation("DriverCurrentSubLocation")
+  pickups              RideRequest[]       @relation("RidePickup")
+  dropoffs             RideRequest[]       @relation("RideDropoff")
+  poolsHere            Pool[]              @relation("PoolSubLocation")
+  trajectoryOrigins    SpatialTrajectory[] @relation("TrajectoryOrigin")
+  trajectoryPrimaryDst SpatialTrajectory[] @relation("TrajectoryDestination")
+
+  @@index([locationId])
+  @@map("sub_locations")
+}
+
+model Passenger {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String        @db.VarChar(80)
+  phoneNumber        String        @unique @map("phone_number") @db.VarChar(20)
+  passwordHash       String        @map("password_hash") @db.VarChar(100)
+  /// Simulated TeslaPay wallet, integer paisa. CHECK >= 0.
+  walletBalancePaisa Int           @default(0) @map("wallet_balance_paisa")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  rideRequests       RideRequest[]
+  payments           Payment[]
+
+  @@map("passengers")
+}
+
+model Driver {
+  id                   String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String       @db.VarChar(80)
+  phoneNumber          String       @unique @map("phone_number") @db.VarChar(20)
+  licenseNumber        String       @unique @map("license_number") @db.VarChar(40)
+  passwordHash         String       @map("password_hash") @db.VarChar(100)
+  isOnline             Boolean      @default(false) @map("is_online")
+  currentSubLocationId String?      @map("current_sub_location_id") @db.Uuid
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  currentSubLocation   SubLocation? @relation("DriverCurrentSubLocation", fields: [currentSubLocationId], references: [id], onDelete: SetNull)
+  vehicle              Vehicle?
+  pools                Pool[]
+
+  @@map("drivers")
+}
+
+/// A Tesla. One per driver in v1; capacity is fixed (Bullet = 3).
+model Vehicle {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  driverId    String   @unique @map("driver_id") @db.Uuid
+  modelName   String   @map("model_name") @db.VarChar(40)
+  plateNumber String   @unique @map("plate_number") @db.VarChar(40)
+  capacity    Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  driver      Driver   @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  pools       Pool[]
+
+  @@map("vehicles")
+}
+
+/// One trip of one Tesla that may carry several ride requests.
+model Pool {
+  id                   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  vehicleId            String             @map("vehicle_id") @db.Uuid
+  /// Who drove it, kept even if the vehicle is later reassigned.
+  driverId             String             @map("driver_id") @db.Uuid
+  /// Pool origin (first rider's pickup); defines the matching cluster.
+  currentSubLocationId String             @map("current_sub_location_id") @db.Uuid
+  /// Snapshot of vehicle capacity at creation. CHECK 0 <= occupied_seats <= capacity.
+  capacity             Int
+  occupiedSeats        Int                @default(0) @map("occupied_seats")
+  status               PoolStatus         @default(OPEN)
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  startedAt            DateTime?          @map("started_at") @db.Timestamptz(3)
+  completedAt          DateTime?          @map("completed_at") @db.Timestamptz(3)
+  cancelledAt          DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  vehicle              Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  driver               Driver             @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  currentSubLocation   SubLocation        @relation("PoolSubLocation", fields: [currentSubLocationId], references: [id], onDelete: Restrict)
+  trajectory           SpatialTrajectory?
+  memberships          PoolMembership[]
+  statusEvents         RideStatusEvent[]
+
+  @@index([status, currentSubLocationId])
+  @@index([driverId, createdAt(sort: Desc)])
+  @@map("pools")
+}
+
+/// Direction the pool is heading, used by the heading + detour checks.
+model SpatialTrajectory {
+  id                              String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  poolId                          String      @unique @map("pool_id") @db.Uuid
+  originSubLocationId             String      @map("origin_sub_location_id") @db.Uuid
+  primaryDestinationSubLocationId String      @map("primary_destination_sub_location_id") @db.Uuid
+  /// Bearing in whole degrees, 0 = north, clockwise.
+  routeHeadingDeg                 Int         @map("route_heading_deg")
+  maxAllowableDetourSeconds       Int         @map("max_allowable_detour_seconds")
+  updatedAt                       DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  pool                            Pool        @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  origin                          SubLocation @relation("TrajectoryOrigin", fields: [originSubLocationId], references: [id], onDelete: Restrict)
+  primaryDestination              SubLocation @relation("TrajectoryDestination", fields: [primaryDestinationSubLocationId], references: [id], onDelete: Restrict)
+
+  @@map("spatial_trajectories")
+}
+
+model RideRequest {
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  passengerId          String            @map("passenger_id") @db.Uuid
+  pickupSubLocationId  String            @map("pickup_sub_location_id") @db.Uuid
+  dropoffSubLocationId String            @map("dropoff_sub_location_id") @db.Uuid
+  seatsRequested       Int               @default(1) @map("seats_requested")
+  /// Straight-line pickup → drop-off distance, fixed at request time.
+  distanceM            Int               @map("distance_m")
+  paymentMethod        PaymentMethod     @default(CASH) @map("payment_method")
+  status               RideStatus        @default(REQUESTED)
+  cancelReason         String?           @map("cancel_reason") @db.VarChar(200)
+  requestedAt          DateTime          @default(now()) @map("requested_at") @db.Timestamptz(3)
+  matchedAt            DateTime?         @map("matched_at") @db.Timestamptz(3)
+  arrivedAt            DateTime?         @map("arrived_at") @db.Timestamptz(3)
+  startedAt            DateTime?         @map("started_at") @db.Timestamptz(3)
+  completedAt          DateTime?         @map("completed_at") @db.Timestamptz(3)
+  cancelledAt          DateTime?         @map("cancelled_at") @db.Timestamptz(3)
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  passenger            Passenger         @relation(fields: [passengerId], references: [id], onDelete: Restrict)
+  pickup               SubLocation       @relation("RidePickup", fields: [pickupSubLocationId], references: [id], onDelete: Restrict)
+  dropoff              SubLocation       @relation("RideDropoff", fields: [dropoffSubLocationId], references: [id], onDelete: Restrict)
+  membership           PoolMembership?
+  fareCalculations     FareCalculation[]
+  statusEvents         RideStatusEvent[]
+  payment              Payment?
+
+  @@index([passengerId, requestedAt(sort: Desc)])
+  @@index([status, pickupSubLocationId])
+  @@map("ride_requests")
+}
+
+/// Which ride request rides in which pool. A ride joins at most one pool, ever.
+model PoolMembership {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  poolId        String      @map("pool_id") @db.Uuid
+  rideRequestId String      @unique @map("ride_request_id") @db.Uuid
+  seats         Int
+  joinedAt      DateTime    @default(now()) @map("joined_at") @db.Timestamptz(3)
+  /// Set when the rider is dropped off or cancels; seats are released then.
+  leftAt        DateTime?   @map("left_at") @db.Timestamptz(3)
+  pool          Pool        @relation(fields: [poolId], references: [id], onDelete: Restrict)
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Restrict)
+
+  @@index([poolId])
+  @@map("pool_memberships")
+}
+
+/// Append-only fare history. Latest row per ride is the current fare.
+model FareCalculation {
+  id                String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rideRequestId     String      @map("ride_request_id") @db.Uuid
+  kind              FareKind
+  distanceM         Int         @map("distance_m")
+  seats             Int
+  baseFarePaisa     Int         @map("base_fare_paisa")
+  distanceFarePaisa Int         @map("distance_fare_paisa")
+  poolDiscountPaisa Int         @map("pool_discount_paisa")
+  finalFarePaisa    Int         @map("final_fare_paisa")
+  isPooled          Boolean     @map("is_pooled")
+  coRiderCount      Int         @map("co_rider_count")
+  calculatedAt      DateTime    @default(now()) @map("calculated_at") @db.Timestamptz(3)
+  rideRequest       RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Restrict)
+
+  @@index([rideRequestId, calculatedAt])
+  @@map("fare_calculations")
+}
+
+/// Audit trail of every ride status change.
+model RideStatusEvent {
+  id            Int         @id @default(autoincrement())
+  rideRequestId String      @map("ride_request_id") @db.Uuid
+  poolId        String?     @map("pool_id") @db.Uuid
+  fromStatus    RideStatus? @map("from_status")
+  toStatus      RideStatus  @map("to_status")
+  actorType     ActorType   @map("actor_type")
+  actorId       String?     @map("actor_id") @db.Uuid
+  note          String?     @db.VarChar(300)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  rideRequest   RideRequest @relation(fields: [rideRequestId], references: [id], onDelete: Restrict)
+  pool          Pool?       @relation(fields: [poolId], references: [id], onDelete: Restrict)
+
+  @@index([rideRequestId, id])
+  @@map("ride_status_events")
+}
+
+model Payment {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rideRequestId String        @unique @map("ride_request_id") @db.Uuid
+  passengerId   String        @map("passenger_id") @db.Uuid
+  method        PaymentMethod
+  amountPaisa   Int           @map("amount_paisa")
+  note          String?       @db.VarChar(200)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  rideRequest   RideRequest   @relation(fields: [rideRequestId], references: [id], onDelete: Restrict)
+  passenger     Passenger     @relation(fields: [passengerId], references: [id], onDelete: Restrict)
+
+  @@index([passengerId, createdAt(sort: Desc)])
+  @@map("payments")
+}
