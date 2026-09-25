@@ -67,12 +67,12 @@ A ride request **R** may join an existing pool **P** only if *all* of these hold
 2. **Same pickup cluster** — R's pickup sub-location is in the same zone as P's origin.
 3. **Heading** — the bearing of R (pickup → drop-off) is within **60°** of the pool's
    trajectory heading (pool origin → first rider's drop-off).
-4. **Detour** — the planner builds the pooled route: origin → other pickups (nearest
+4. **Capacity** — `P.occupied_seats + R.seats ≤ P.capacity`, re-checked **under a row
+   lock** (see §6).
+5. **Detour** — the planner builds the pooled route: origin → other pickups (nearest
    first) → drop-offs in the order that minimises total distance, trying every
    permutation (≤ 3! = 6). Every member's extra time vs. riding alone must be
    **≤ 300 s**. If no drop-off order satisfies everyone, R does not fit.
-5. **Capacity** — `P.occupied_seats + R.seats ≤ P.capacity`, re-checked **under a row
-   lock** (see §6).
 
 **How it matches:** when a passenger requests a ride, the engine immediately tries
 every OPEN pool in the pickup cluster (best added detour first). If one fits, the ride

@@ -8,6 +8,8 @@ import { logger } from './lib/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authRouter } from './modules/auth/auth.routes';
 import { healthRouter } from './modules/health/health.routes';
+import { locationsRouter } from './modules/locations/locations.routes';
+import { rideRouter } from './modules/rides/ride.routes';
 
 export function createApp() {
   const app = express();
@@ -32,6 +34,8 @@ export function createApp() {
 
   app.use(healthRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/locations', locationsRouter);
+  app.use('/api/rides', rideRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
