@@ -88,7 +88,12 @@ export function evaluateJoin(pool: PoolSnapshot, candidate: RiderLeg): MatchResu
 
   const free = pool.capacity - pool.occupiedSeats;
   if (candidate.seats > free) {
-    return fail('NO_SEATS', `Only ${free} of ${pool.capacity} seats left, ${candidate.seats} requested`);
+    return fail(
+      'NO_SEATS',
+      free === 0
+        ? `No seats left — all ${pool.capacity} are taken`
+        : `Only ${free} of ${pool.capacity} seats left, ${candidate.seats} requested`,
+    );
   }
 
   const plan = planRoute(pool.origin, [...pool.members, candidate], pool.maxDetourSeconds);

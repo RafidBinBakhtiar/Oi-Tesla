@@ -70,7 +70,10 @@ describe('matching — the Banani rush-hour story', () => {
 
   it('never fills beyond capacity, whatever the geometry', () => {
     const full = bulletWith([nusrat, rafiq, shirin]);
-    expect(evaluateJoin(full, leg('tania', 'BANANI_RD_11', 'MOHAKHALI'))).toMatchObject({ code: 'NO_SEATS' });
+    expect(evaluateJoin(full, leg('tania', 'BANANI_RD_11', 'MOHAKHALI'))).toMatchObject({
+      code: 'NO_SEATS',
+      reason: 'No seats left — all 3 are taken',
+    });
   });
 
   it('rejects a rider going the opposite way', () => {
