@@ -1,12 +1,12 @@
 #!/bin/sh
-# Apply pending migrations, seed the story cast (idempotent), then start the API.
+# Apply pending migrations, seed reference geography (idempotent), then start the API.
 set -e
 
 echo "→ applying database migrations"
 npx prisma migrate deploy
 
 if [ "${SEED_ON_START:-true}" = "true" ]; then
-  echo "→ seeding zones and the Banani story cast"
+  echo "→ seeding zones and sub-locations"
   node dist/db/seed.js
 fi
 

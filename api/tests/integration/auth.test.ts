@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { signToken } from '../../src/lib/jwt';
-import { api, bearer, login, resetDatabase } from './helpers';
+import { api, bearer, FIXTURE_PASSWORD, login, resetDatabase } from './helpers';
 
 describe('auth', () => {
   beforeAll(resetDatabase);
@@ -27,7 +27,7 @@ describe('auth', () => {
   it('rejects a duplicate phone number', async () => {
     const res = await api()
       .post('/api/auth/passengers/signup')
-      .send({ name: 'Fake Nusrat', phoneNumber: '01711000001', password: 'whatever123' });
+      .send({ name: 'Impostor', phoneNumber: '01711000001', password: 'whatever123' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('PHONE_TAKEN');
   });
@@ -43,8 +43,8 @@ describe('auth', () => {
     );
   });
 
-  it('logs in Nusrat and returns the same error for wrong password and unknown phone', async () => {
-    expect(await login('Nusrat')).toBeTruthy();
+  it('logs in RiderA and returns the same error for wrong password and unknown phone', async () => {
+    expect(await login('RiderA')).toBeTruthy();
 
     const wrongPassword = await api()
       .post('/api/auth/passengers/login')
@@ -57,20 +57,20 @@ describe('auth', () => {
     expect(wrongPassword.body).toEqual(unknownPhone.body);
   });
 
-  it('logs Jashim in as a driver with Bullet attached', async () => {
-    const token = await login('Jashim');
+  it('logs DriverA in as a driver with their car attached', async () => {
+    const token = await login('DriverA');
     const me = await api().get('/api/auth/me').set(bearer(token));
     expect(me.body).toMatchObject({
       role: 'driver',
-      name: 'Jashim',
-      vehicle: { modelName: 'Bullet', capacity: 3 },
+      name: 'DriverA',
+      vehicle: { modelName: 'Tesla Model 3', capacity: 3 },
     });
   });
 
   it('does not let a passenger log in through the driver endpoint', async () => {
     const res = await api()
       .post('/api/auth/drivers/login')
-      .send({ phoneNumber: '01711000001', password: 'oitesla123' });
+      .send({ phoneNumber: '01711000001', password: FIXTURE_PASSWORD });
     expect(res.status).toBe(401);
   });
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { calculateFare, estimateFare } from '../../src/domain/fare';
 
-describe('fare model — Nusrat and Rafiq by hand', () => {
-  it('Nusrat, Banani Rd 11 → Mohakhali (1 789 m), alone: 3000 + 3578 = 6578', () => {
+describe('fare model — RiderA and RiderB by hand', () => {
+  it('RiderA, Banani Rd 11 → Mohakhali (1 789 m), alone: 3000 + 3578 = 6578', () => {
     expect(calculateFare({ distanceM: 1789, seats: 1, coRiderCount: 0 })).toEqual({
       distanceM: 1789,
       seats: 1,
@@ -15,14 +15,14 @@ describe('fare model — Nusrat and Rafiq by hand', () => {
     });
   });
 
-  it('Nusrat pooled with Rafiq: discount floor(3578 × 25%) = 894 → 5684', () => {
+  it('RiderA pooled with RiderB: discount floor(3578 × 25%) = 894 → 5684', () => {
     const fare = calculateFare({ distanceM: 1789, seats: 1, coRiderCount: 1 });
     expect(fare.poolDiscountPaisa).toBe(894);
     expect(fare.finalFarePaisa).toBe(5684);
     expect(fare.isPooled).toBe(true);
   });
 
-  it('Rafiq, Banani Rd 11 → Gulshan 1 (1 935 m): 6870 alone, 5903 pooled', () => {
+  it('RiderB, Banani Rd 11 → Gulshan 1 (1 935 m): 6870 alone, 5903 pooled', () => {
     expect(calculateFare({ distanceM: 1935, seats: 1, coRiderCount: 0 }).finalFarePaisa).toBe(6870);
     const pooled = calculateFare({ distanceM: 1935, seats: 1, coRiderCount: 1 });
     expect(pooled.distanceFarePaisa).toBe(3870);
