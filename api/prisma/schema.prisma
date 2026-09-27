@@ -109,7 +109,7 @@ model Driver {
   @@map("drivers")
 }
 
-/// A Tesla. One per driver in v1; capacity is fixed (Bullet = 3).
+/// A Tesla. One per driver in v1; capacity is fixed per vehicle.
 model Vehicle {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   driverId    String   @unique @map("driver_id") @db.Uuid

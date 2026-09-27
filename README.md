@@ -6,10 +6,9 @@
 > 🌐 **Live deployment:** _TODO — add URL (see [docs/deployment.md](docs/deployment.md))_
 > 🏷️ **Release shown:** `release/v1.0.0`
 
-8:41 AM, Banani Road 11. Jashim leans against **Bullet**, his three-seat battery rickshaw ("Tesla").
-**Nusrat** books Banani → Mohakhali. Two minutes later **Rafiq** books Banani → Gulshan 1. In about a
-second the app decides they can share, re-prices both fares, and tells Jashim to drop Nusrat first.
-Thirty seconds later **Shirin** asks for the last seat, and concurrency gets properly interesting.
+Passengers book a seat in a three-seat electric car ("Tesla"). When someone else is heading the same way,
+the app decides in about a second whether they can share, re-prices both fares, and tells the driver which
+stop comes first. When two people ask for the last seat at the same instant, exactly one of them gets it.
 
 ---
 
@@ -27,7 +26,7 @@ Thirty seconds later **Shirin** asks for the last seat, and concurrency gets pro
 10. [Tech stack & why](#10-tech-stack--why)
 11. [Project structure](#11-project-structure)
 12. [Running it](#12-running-it)
-13. [Demo credentials](#13-demo-credentials)
+13. [Accounts](#13-accounts)
 14. [API overview](#14-api-overview)
 15. [Testing](#15-testing)
 16. [Decisions, trade-offs, limitations, next steps](#16-decisions-trade-offs-limitations-next-steps)
@@ -45,7 +44,7 @@ way. Drivers need to know who is riding, how many seats are taken, and in what o
 parts are not the screens. They are:
 
 * **deciding fairly and quickly whether two trips can share** a Tesla,
-* **never selling more seats than Bullet has**, even when two people tap *Request* at the same instant,
+* **never selling more seats than the car has**, even when two people tap *Request* at the same instant,
 * **giving each passenger their own fare and status**, and never someone else's,
 * **keeping enough history** to explain afterwards exactly what happened and why a fare was what it was.
 
@@ -55,8 +54,8 @@ This MVP is a Next.js web app, an Express + TypeScript REST API and PostgreSQL, 
 
 ## 2. Features
 
-**Passenger (Nusrat, Rafiq, Shirin)**
-- Sign up / sign in (Bangladeshi mobile number + password), plus one-tap sign-in as any story cast member.
+**Passenger**
+- Sign up / sign in with a Bangladeshi mobile number and password.
 - Pick pickup and drop-off from 30 Dhaka points in 6 zones; choose 1–3 seats; pay with cash or TeslaPay.
 - A **live fare estimate** shows the solo price and the pooled price before booking.
 - On request the app **auto-pools** the ride into a compatible Tesla in about a second, or waits for a driver.
@@ -65,7 +64,7 @@ This MVP is a Next.js web app, an Express + TypeScript REST API and PostgreSQL, 
 - Cancel any time before pickup. A receipt appears after drop-off.
 - History, plus a per-ride page showing **how the fare moved** and the full status timeline.
 
-**Driver (Jashim + Bullet)**
+**Driver**
 - Sign in; go online / offline at a pickup point (going offline is blocked while riders are assigned).
 - **Relevant requests** are the waiting rides in the driver's zone. Each shows *Accept*, or the exact reason
   it doesn't fit ("Only 1 of 3 seats left, 2 requested").
@@ -82,8 +81,8 @@ This MVP is a Next.js web app, an Express + TypeScript REST API and PostgreSQL, 
 ## 3. Screenshots
 
 > _TODO: add after recording the demo (`docs/screenshots/`)._
-> Suggested shots: landing with the cast picker · Nusrat's estimate (solo vs pooled) · Nusrat matched, seat
-> meter 2/3 · Jashim's dashboard with stop order · Shirin's 2-seat request refused · ride detail showing the fare history.
+> Suggested shots: the 3D landing page · a passenger's estimate (solo vs pooled) · a matched ride with seat
+> meter 2/3 · the driver dashboard with stop order · a 2-seat request refused · ride detail showing the fare history.
 
 ## 4. Architecture
 
@@ -171,7 +170,7 @@ erDiagram
         uuid current_sub_location_id FK }
     VEHICLES { uuid id PK
         uuid driver_id FK "UNIQUE"
-        varchar model_name "Bullet"
+        varchar model_name "Tesla Model 3"
         varchar plate_number UK
         int capacity "CHECK 1..6" }
     POOLS { uuid id PK
@@ -229,7 +228,7 @@ erDiagram
 |---|---|
 | `locations` / `sub_locations` | Zones (the matching cluster) and named points with a centre `lat/lng`. |
 | `passengers` / `drivers` | Separate tables as in the original design: they share almost no columns (a wallet vs. a licence, online flag and location), and separate login endpoints mean a token can never be "upgraded" to the other role. |
-| `vehicles` | Bullet, with fixed `capacity`. One vehicle per driver (`UNIQUE driver_id`). |
+| `vehicles` | A Tesla with a fixed `capacity`. One vehicle per driver (`UNIQUE driver_id`). |
 | `pools` | One trip of one Tesla. `capacity` is snapshotted so the CHECK can compare within one row; `driver_id` records who actually drove. |
 | `spatial_trajectories` | The pool's direction (origin, first rider's destination, heading, detour budget), used by the matching rule. 1:1 with pools; re-anchored if the anchor rider cancels. |
 | `ride_requests` | One passenger's trip. `distance_m` is fixed at request time so fares are reproducible. |
@@ -259,7 +258,7 @@ stateDiagram-v2
 I kept the suggested lifecycle, with two deliberate refinements:
 
 1. **Arrive / start / complete are per rider, not per pool.** Pooled riders are dropped at different places:
-   Nusrat is COMPLETED at Mohakhali while Rafiq is still STARTED toward Gulshan 1.
+   Rider A is COMPLETED at Mohakhali while Rider B is still STARTED toward Gulshan 1.
 2. **Pool status is derived, never set by hand** (`derivePoolStatus`): OPEN while nobody is on board,
    IN_PROGRESS once anyone is picked up (and then **closed to new riders**), COMPLETED or CANCELLED when
    nobody active is left. Occupied seats are recomputed from members after every change.
@@ -281,10 +280,10 @@ A request **R** joins an OPEN pool **P** only if, checked cheapest-first:
 Distance is straight-line (equirectangular projection, whole metres) and time assumes **20 km/h**
 (0.18 s per metre).
 
-**Nusrat vs. Rafiq, by hand:** Banani Rd 11 (23.7940, 90.4043) → Mohakhali (23.7784, 90.4000) = **1 789 m**
-at 194.2°. Banani Rd 11 → Gulshan 1 (23.7805, 90.4163) = **1 935 m** at 140.9°.
-The headings differ by 53.3° ✅. Dropping Nusrat first, Rafiq rides 1 789 + 1 675 = 3 464 m instead of 1 935 m:
-+1 529 m = **275 s** ✅. The other order would cost Nusrat 328 s ❌, so Jashim's stop order is
+**Worked example, by hand:** Rider A goes Banani Rd 11 (23.7940, 90.4043) → Mohakhali (23.7784, 90.4000)
+= **1 789 m** at 194.2°. Rider B goes Banani Rd 11 → Gulshan 1 (23.7805, 90.4163) = **1 935 m** at 140.9°.
+The headings differ by 53.3° ✅. Dropping Rider A first, Rider B rides 1 789 + 1 675 = 3 464 m instead of
+1 935 m: +1 529 m = **275 s** ✅. The other order would cost Rider A 328 s ❌, so the driver's stop order is
 **Banani Rd 11 → Mohakhali → Gulshan 1**.
 
 ## 8. Fare model & money
@@ -296,7 +295,7 @@ poolDiscount   = floor(distanceCharge × 25 / 100)      only if the pool has ≥
 passengerFare  = baseFare + distanceCharge − poolDiscount
 ```
 
-| | Nusrat (1 789 m) | Rafiq (1 935 m) |
+| | Rider A (1 789 m) | Rider B (1 935 m) |
 |---|---|---|
 | base | 3 000 | 3 000 |
 | distance | 3 578 | 3 870 |
@@ -307,7 +306,7 @@ passengerFare  = baseFare + distanceCharge − poolDiscount
 * **You pay for your own distance only.** The detour the pool causes you is never billed, so pooling can
   only lower a fare.
 * **When a fare changes:** ESTIMATE (solo) at request → a QUOTE whenever pool membership changes, for riders
-  not yet picked up (Rafiq joining drops Nusrat's quote from 6 578 to 5 684; his cancelling would restore it)
+  not yet picked up (Rider B joining drops Rider A's quote from 6 578 to 5 684; Rider B cancelling would restore it)
   → **locked at pickup** → FINAL + payment at drop-off.
 * **Money is integer paisa** everywhere: DB `INTEGER`, TypeScript `number`, converted to ৳ only when
   displayed. Integer arithmetic is exact (no `0.1 + 0.2` drift), rounding happens once and explicitly
@@ -317,11 +316,11 @@ passengerFare  = baseFare + distanceCharge − poolDiscount
 * **Payment:** cash, or the simulated **TeslaPay** wallet. The wallet must cover the *solo* estimate at
   request time (the maximum possible fare), and is debited at drop-off with a conditional
   `UPDATE … WHERE balance >= amount`. The `CHECK (wallet_balance_paisa >= 0)` constraint backs it up.
-  Shirin's ৳40 wallet is refused for a ৳68.70 trip.
+  A ৳40 wallet is refused for a ৳68.70 trip.
 
 ## 9. Concurrency & consistency
 
-**The problem:** Bullet has 1 seat left. Nusrat and Shirin tap *Request* at the same instant, and both
+**The problem:** a car has 1 seat left. Two passengers tap *Request* at the same instant, and both
 read "1 seat free".
 
 **What happens now:**
@@ -340,7 +339,7 @@ it. Fare-quote timestamps are taken *after* the lock, so "latest fare" follows l
 
 This is tested for real (`tests/integration/pooling.test.ts`: concurrent requests and concurrent accepts),
 and I also exercised it against a live database: 5 back-to-back races, exactly one winner each time, both
-Nusrat and Shirin won at least once, and no pool ever exceeded 3.
+passengers won at least once, and no pool ever exceeded 3.
 
 **At larger scale:** a hot pool row serialises only its own zone's requests, which is fine for a city MVP.
 With many concurrent requests per zone, I would move matching to a **single writer per zone** (a
@@ -382,7 +381,7 @@ I'd keep the DB constraints as the safety net and add idempotency keys; see §18
 │   │   │   └── health/
 │   │   ├── middleware/          auth guard, error handler
 │   │   ├── lib/                 prisma, jwt, password, logger, errors
-│   │   ├── db/                  seed data (the story cast), seeders
+│   │   ├── db/                  seed data (zones), seeders
 │   │   ├── config/env.ts        zod-validated environment
 │   │   ├── app.ts / server.ts
 │   ├── tests/unit/              fare, geo, matching, state machine, jwt
@@ -413,7 +412,7 @@ Root [`.env.example`](.env.example) (used by compose; every value has a safe loc
 | `JWT_SECRET` | api | HS256 signing key, ≥ 16 chars. **Set a real one anywhere public.** |
 | `JWT_EXPIRES_IN` | api | Token lifetime (default `12h`) |
 | `CORS_ORIGIN` | api | Comma-separated allowed web origins |
-| `SEED_ON_START` | api | Seed zones + the cast on container start (idempotent) |
+| `SEED_ON_START` | api | Seed zones and sub-locations on container start (idempotent) |
 | `LOG_LEVEL` | api | pino level |
 | `PUBLIC_API_URL` | web | API URL **as the browser sees it**; read per request |
 | `WEB_PORT` / `API_PORT` / `DB_PORT` | compose | Host ports (DB defaults to **5433** to avoid clashing with a local Postgres) |
@@ -441,7 +440,7 @@ cd api
 cp .env.example .env               # point DATABASE_URL at your Postgres
 npm ci
 npx prisma migrate deploy          # migrations
-npm run db:seed                    # zones + Nusrat, Rafiq, Shirin, Jashim/Bullet
+npm run db:seed                    # zones and sub-locations
 npm run dev                        # http://localhost:4000
 
 # Web (second terminal)
@@ -453,21 +452,18 @@ npm run dev                        # http://localhost:3000
 
 Useful scripts: `npm run db:reset` (drop, re-migrate, re-seed; dev only), `npm run build && npm start`.
 
-## 13. Demo credentials
+## 13. Accounts
 
-Every account's password is **`oitesla123`**. The landing and login pages also have one-tap buttons for each cast member.
+The seed creates **no accounts**, only zones and sub-locations.
 
-| Who | Role | Phone | Notes |
-|---|---|---|---|
-| Nusrat | passenger | `01711000001` | TeslaPay ৳500 |
-| Rafiq | passenger | `01711000002` | TeslaPay ৳500 |
-| Shirin | passenger | `01711000003` | TeslaPay **৳40**: shows the low-balance edge case |
-| Jashim | driver | `01811000001` | Drives **Bullet** (3 seats), starts online at Banani Road 11 |
+* **Passengers** sign up at `/signup`. New wallets start at ৳0, so pay with cash until TeslaPay is topped up.
+* **Drivers** cannot sign up yet. A driver and their vehicle have to be inserted into the database directly;
+  a driver sign-up / onboarding flow is on the next-steps list.
 
-**Demo script:** open two windows (Jashim in one, a passenger in a private window). Nusrat requests
-Banani Rd 11 → Mohakhali → Jashim accepts → Rafiq requests Banani Rd 11 → Gulshan 1 (auto-pooled, and both
-fares drop) → Shirin asks for 2 seats (refused: 1 seat left) → Shirin asks for 1 (Bullet full) → Jashim
-arrives / starts / drops off in the planned order.
+**Walkthrough:** open two windows (the driver in one, a passenger in a private window). Passenger A requests
+Banani Rd 11 → Mohakhali → the driver accepts → passenger B requests Banani Rd 11 → Gulshan 1 (auto-pooled,
+and both fares drop) → passenger C asks for 2 seats (refused: 1 seat left) → asks for 1 (car full) → the
+driver arrives / starts / drops off in the planned order.
 
 ## 14. API overview
 
@@ -511,12 +507,12 @@ docker compose --profile test run --rm api-test
 
 | Risk | Where |
 |---|---|
-| Bullet's capacity can never be exceeded (app rule, 2-seat request refused, DB CHECK rejects a direct `UPDATE`, one active pool per vehicle) | `integration/pooling.test.ts`, `unit/matching.test.ts` |
+| A car's capacity can never be exceeded (app rule, 2-seat request refused, DB CHECK rejects a direct `UPDATE`, one active pool per vehicle) | `integration/pooling.test.ts`, `unit/matching.test.ts` |
 | Invalid state transitions rejected (skip steps, go backwards, wrong actor; the full transition table) | `unit/rideStateMachine.test.ts`, `integration/pooling.test.ts` |
-| Nusrat's and Rafiq's pooled fares (6578/5684 and 6870/5903, re-quote on join, FINAL on drop-off, TeslaPay debit) | `unit/fare.test.ts`, `integration/pooling.test.ts` |
+| The worked-example pooled fares (6578/5684 and 6870/5903, re-quote on join, FINAL on drop-off, TeslaPay debit) | `unit/fare.test.ts`, `integration/pooling.test.ts` |
 | Users can't modify another user's ride (404, no co-rider leakage, role separation) | `integration/pooling.test.ts`, `integration/auth.test.ts` |
 | Cancellation rules (allowed before pickup only, frees the seat, removes the pool discount, empties the pool) | `integration/pooling.test.ts` |
-| Two concurrent requests can't corrupt capacity (Nusrat vs Shirin for the last seat; double accept) | `integration/pooling.test.ts` |
+| Two concurrent requests can't corrupt capacity (two passengers racing for the last seat; double accept) | `integration/pooling.test.ts` |
 
 Integration tests refuse to run unless the database name ends in `_test`, because they truncate tables.
 
@@ -525,7 +521,7 @@ Integration tests refuse to run unless the database name ends in `_test`, becaus
 **Key decisions**
 * **Auto-pool on request, manual accept for the first rider.** The first rider needs a driver's consent to
   start a trip. After that, a driver with an OPEN pool has effectively opted in to compatible riders, which
-  delivers the "decide in about a second" from the story.
+  delivers the "decide in about a second" goal.
 * **The rules are pure functions**, and the DB layer only locks, loads snapshots and writes. That is why the
   matching and fare logic can be tested exhaustively without a database.
 * **Pessimistic row locks** rather than optimistic versioning: contention is per pool (tiny), and blocking
@@ -542,13 +538,13 @@ Integration tests refuse to run unless the database name ends in `_test`, becaus
 **Known limitations**
 * No pickups en route: a pool closes once anyone is on board.
 * REQUESTED rides don't expire, and there are no cancellation fees, driver no-show handling or ratings.
-* One Tesla per driver; no admin UI; no password reset.
+* One Tesla per driver; no driver sign-up (drivers are created in the database); no admin UI; no password reset.
 * The Prisma CLI's `deepmerge-ts` advisory is patched with an npm override to 8.x.
 * Docker files are written to the brief but were not run on the development machine (no Docker there);
   the compiled artefacts they run (`dist/server.js`, `dist/db/seed.js`, `next build` standalone) were verified.
 
 **Next improvements**
-Ride-request expiry job · driver no-show / cancel with fee rules · SSE for live status · httpOnly auth
+Driver sign-up / onboarding · ride-request expiry job · driver no-show / cancel with fee rules · SSE for live status · httpOnly auth
 cookies + refresh tokens · PostGIS + a road-distance matrix · Playwright end-to-end tests · ratings ·
 admin audit view over `ride_status_events`.
 
@@ -582,7 +578,7 @@ real-time delivery, idempotency, contention and observability. It's reasoned thr
 * **Tools:** Claude Code (Claude Opus) as a pair programmer in the editor and terminal, plus official docs
   (Prisma, Next.js, Express 5).
 * **Used for:** turning the architecture draft into a design doc; scaffolding; the matching planner and fare
-  model; integration tests; Docker files; README drafting. Every rule was checked by hand against the story
+  model; integration tests; Docker files; README drafting. Every rule was checked by hand against the worked-example
   numbers and exercised against a real Postgres (including a live last-seat race).
 * **Accepted suggestion:** serialising seat claims with `SELECT … FOR UPDATE` on the pool row, re-running
   the full matching rule after the lock is granted, and keeping `CHECK (occupied_seats BETWEEN 0 AND capacity)`
@@ -591,7 +587,7 @@ real-time delivery, idempotency, contention and observability. It's reasoned thr
   * `npm install` pulled in **TypeScript 7** and **Next.js 14**. I pinned TypeScript 5.9 (proven with Prisma
     and Next) and moved to **Next.js 16**, because 14 is end-of-life with unpatched critical advisories.
   * The first draft stored **one fare row per ride** (1:1 in the original ERD). I changed it to an
-    **append-only history** (ESTIMATE → QUOTE… → FINAL) so the system can explain *why* Nusrat paid ৳56.84
+    **append-only history** (ESTIMATE → QUOTE… → FINAL) so the system can explain *why* a rider paid ৳56.84
     and not ৳65.78.
   * The first matching order checked detour before capacity. I swapped them: capacity is cheaper, and
-    "only 1 seat left" is a better answer for Shirin than a detour error.
+    "only 1 seat left" is a better answer for the rider than a detour error.

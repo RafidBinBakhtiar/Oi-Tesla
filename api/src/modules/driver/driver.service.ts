@@ -42,7 +42,7 @@ export async function setAvailability(driverId: string, input: { online: boolean
     }
 
     const target = input.subLocationId ?? driver.currentSubLocationId;
-    if (!target) throw badRequest('Tell us where Bullet is parked to go online', 'LOCATION_REQUIRED');
+    if (!target) throw badRequest('Choose where your car is parked to go online', 'LOCATION_REQUIRED');
     if (input.subLocationId) {
       const exists = await tx.subLocation.findUnique({ where: { id: input.subLocationId } });
       if (!exists) throw badRequest('Unknown location', 'UNKNOWN_LOCATION');
@@ -115,7 +115,7 @@ export async function listRelevantRequests(driverId: string) {
 export async function acceptRequest(driverId: string, rideId: string) {
   const poolId = await prisma.$transaction(async (tx) => {
     // Driver lock first: two taps on "Accept" (or two requests) cannot both
-    // decide "no active pool yet" and open two pools for Bullet.
+    // decide "no active pool yet" and open two pools for the same car.
     await lockDriver(tx, driverId);
     const driver = await tx.driver.findUniqueOrThrow({
       where: { id: driverId },

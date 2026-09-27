@@ -13,9 +13,9 @@ const mohakhali = at('MOHAKHALI');
 const gulshan1 = at('GULSHAN_1');
 
 describe('geo — the numbers quoted in docs/design.md', () => {
-  it('measures the story distances in whole metres', () => {
-    expect(distanceM(banani, mohakhali)).toBe(1789); // Nusrat
-    expect(distanceM(banani, gulshan1)).toBe(1935); // Rafiq
+  it('measures the worked-example distances in whole metres', () => {
+    expect(distanceM(banani, mohakhali)).toBe(1789); // RiderA
+    expect(distanceM(banani, gulshan1)).toBe(1935); // RiderB
     expect(distanceM(mohakhali, gulshan1)).toBe(1675);
   });
 
