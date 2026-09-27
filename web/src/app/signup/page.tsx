@@ -52,7 +52,7 @@ export default function SignupPage() {
         <h1>Create a passenger account</h1>
         <label className="field">
           Name
-          <input autoComplete="name" value={form.name} onChange={set('name')} placeholder="Nusrat" required />
+          <input autoComplete="name" value={form.name} onChange={set('name')} placeholder="Your name" required />
           {fieldError('name')}
         </label>
         <label className="field">

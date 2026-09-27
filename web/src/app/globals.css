@@ -6,7 +6,7 @@
   --ink-2: #57534e;
   --ink-3: #8a837c;
   --line: #e4ded7;
-  --brand: #c8102e; /* Bullet red */
+  --brand: #c8102e;
   --brand-ink: #ffffff;
   --brand-soft: #fbe7ea;
   --ok: #15803d;
@@ -375,8 +375,5 @@ body:has(.lp) .header .container { max-width: 1180px; padding: 0 24px; }
   .lp-foot-grid { grid-template-columns: 1fr 1fr; }
 }
 
-.cast { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-.cast button { text-align: left; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--brand-soft); color: var(--brand); flex: none; }
 .auth-card { max-width: 440px; margin: 32px auto 0; }
-.divider { height: 1px; background: var(--line); }
