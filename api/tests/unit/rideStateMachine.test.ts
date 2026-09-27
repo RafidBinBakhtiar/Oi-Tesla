@@ -45,7 +45,7 @@ describe('ride state machine', () => {
   });
 
   it('rejects the right step by the wrong actor', () => {
-    // Nusrat cannot mark her own trip as started; Jashim cannot cancel for her.
+    // RiderA cannot mark her own trip as started; DriverA cannot cancel for her.
     expect(canTransition('DRIVER_ARRIVED', 'STARTED', 'PASSENGER')).toBe(false);
     expect(canTransition('MATCHED', 'CANCELLED', 'DRIVER')).toBe(false);
   });

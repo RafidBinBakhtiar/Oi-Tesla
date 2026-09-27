@@ -1,7 +1,7 @@
 /**
- * Static geography + the story cast. Coordinates are approximate area centres;
- * Banani Road 11 / Mohakhali / Gulshan 1 are the ones the fare and matching
- * examples in docs/design.md are computed from — change them and the docs change.
+ * Static geography. Coordinates are approximate area centres; Banani Road 11 /
+ * Mohakhali / Gulshan 1 are the ones the fare and matching examples in
+ * docs/design.md are computed from — change them and the docs change.
  */
 
 export interface SeedZone {
@@ -76,27 +76,5 @@ export const ZONES: SeedZone[] = [
       { code: 'BASHUNDHARA', name: 'Bashundhara R/A', lat: 23.819, lng: 90.435 },
       { code: 'AFTABNAGAR', name: 'Aftabnagar', lat: 23.767, lng: 90.439 },
     ],
-  },
-];
-
-/** Every demo account shares this password (documented in the README). */
-export const DEMO_PASSWORD = 'oitesla123';
-
-export const PASSENGERS = [
-  // Nusrat, already late for Mohakhali.
-  { name: 'Nusrat', phoneNumber: '01711000001', walletBalancePaisa: 50_000 },
-  // Rafiq, the "total stranger" heading to Gulshan 1.
-  { name: 'Rafiq', phoneNumber: '01711000002', walletBalancePaisa: 50_000 },
-  // Shirin, going for the last seat — with only ৳40 in TeslaPay.
-  { name: 'Shirin', phoneNumber: '01711000003', walletBalancePaisa: 4_000 },
-];
-
-export const DRIVERS = [
-  {
-    name: 'Jashim',
-    phoneNumber: '01811000001',
-    licenseNumber: 'DHK-TESLA-0001',
-    startsOnlineAt: 'BANANI_RD_11',
-    vehicle: { modelName: 'Bullet', plateNumber: 'DHAKA-TESLA-11-0001', capacity: 3 },
   },
 ];

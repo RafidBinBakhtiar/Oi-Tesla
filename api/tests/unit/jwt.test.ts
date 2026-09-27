@@ -4,8 +4,8 @@ import { signToken, verifyToken } from '../../src/lib/jwt';
 
 describe('jwt', () => {
   it('round-trips id and role', () => {
-    const token = signToken({ id: 'nusrat-id', role: 'passenger' });
-    expect(verifyToken(token)).toEqual({ id: 'nusrat-id', role: 'passenger' });
+    const token = signToken({ id: 'riderA-id', role: 'passenger' });
+    expect(verifyToken(token)).toEqual({ id: 'riderA-id', role: 'passenger' });
   });
 
   it('rejects tokens signed with another secret', () => {

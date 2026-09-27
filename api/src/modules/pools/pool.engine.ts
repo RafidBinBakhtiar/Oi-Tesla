@@ -25,7 +25,7 @@ import type { Tx } from '../../lib/prisma';
  *
  *     driver  →  pool  →  ride request
  *
- * so two concurrent requests for Bullet's last seat serialize on the pool row
+ * so two concurrent requests for a car's last seat serialize on the pool row
  * and the second one re-evaluates against the first one's committed result.
  */
 

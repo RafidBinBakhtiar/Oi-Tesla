@@ -5,10 +5,10 @@ code has to follow. If the code and this document disagree, one of them is a bug
 
 ## 1. Actors
 
-| Actor | Who (seed cast) | Can do |
+| Actor | Who | Can do |
 |---|---|---|
-| Passenger | Nusrat, Rafiq, Shirin | sign up / sign in, estimate, request, track, cancel, view history |
-| Driver + Tesla | Jashim + **Bullet** (3 seats) | sign in, go online/offline, see relevant requests, accept, arrive / start / complete each rider, view pool history |
+| Passenger | anyone who signs up | sign up / sign in, estimate, request, track, cancel, view history |
+| Driver + Tesla | a driver with one 3-seat Tesla | sign in, go online/offline, see relevant requests, accept, arrive / start / complete each rider, view pool history |
 | Pool | one per active trip of a Tesla | groups compatible ride requests into one vehicle, never over capacity |
 
 ## 2. Geography (keep it simple)
@@ -41,7 +41,7 @@ REQUESTED ──► MATCHED ──► DRIVER_ARRIVED ──► STARTED ──►
 
 Anything else is rejected with `409 INVALID_TRANSITION`. Arrive/start/complete are
 **per rider**, not per pool, because pooled riders are dropped at different places:
-Nusrat is COMPLETED at Mohakhali while Rafiq is still STARTED on the way to Gulshan 1.
+Rider A is COMPLETED at Mohakhali while Rider B is still STARTED on the way to Gulshan 1.
 
 Every transition writes a row to `ride_status_events` (from, to, actor, note, time) so
 history can explain exactly what happened.
@@ -80,7 +80,7 @@ is MATCHED straight away. If none fits, the ride stays REQUESTED and shows up on
 drivers' "relevant requests" list; a driver accepting it creates a new pool (or adds
 it to the driver's own OPEN pool if the same rules pass).
 
-### The story, worked through
+### Worked example
 
 | Sub-location | lat | lng |
 |---|---|---|
@@ -88,15 +88,15 @@ it to the driver's own OPEN pool if the same rules pass).
 | Mohakhali | 23.7784 | 90.4000 |
 | Gulshan 1 | 23.7805 | 90.4163 |
 
-* Nusrat: Banani Rd 11 → Mohakhali = **1 789 m**, heading 194.2°.
-* Rafiq: Banani Rd 11 → Gulshan 1 = **1 935 m**, heading 140.9°.
+* Rider A: Banani Rd 11 → Mohakhali = **1 789 m**, heading 194.2°.
+* Rider B: Banani Rd 11 → Gulshan 1 = **1 935 m**, heading 140.9°.
 * Heading difference 53.3° ≤ 60° ✅
-* Drop Nusrat first: Rafiq rides 1 789 + 1 675 = 3 464 m instead of 1 935 m →
-  +1 529 m → **275 s** ≤ 300 s ✅ (Nusrat's detour: 0 s).
-* Drop Rafiq first would cost Nusrat +1 821 m → 328 s ❌, so the planner picks
+* Drop Rider A first: Rider B rides 1 789 + 1 675 = 3 464 m instead of 1 935 m →
+  +1 529 m → **275 s** ≤ 300 s ✅ (Rider A's detour: 0 s).
+* Drop Rider B first would cost Rider A +1 821 m → 328 s ❌, so the planner picks
   *Mohakhali first, then Gulshan 1*.
-* Shirin (Banani Rd 11 → Mohakhali, 1 seat) 30 s later fits into the last seat.
-  If she asks for 2 seats she stays REQUESTED: *3 − 2 = 1 seat free*.
+* Rider C (Banani Rd 11 → Mohakhali, 1 seat) 30 s later fits into the last seat.
+  Asking for 2 seats instead, Rider C stays REQUESTED: *3 − 2 = 1 seat free*.
 
 ## 5. Fare model
 
@@ -114,7 +114,7 @@ passengerFare  = baseFare + distanceCharge − poolDiscount
 Each passenger pays for **their own** pickup → drop-off distance, never for the
 detour the pool causes them.
 
-| | Nusrat (1 789 m) | Rafiq (1 935 m) |
+| | Rider A (1 789 m) | Rider B (1 935 m) |
 |---|---|---|
 | baseFare | 3 000 | 3 000 |
 | distanceCharge | 3 578 | 3 870 |
@@ -142,7 +142,7 @@ is debited atomically on completion.
 
 ## 6. Consistency & concurrency
 
-The hard case: Bullet has one seat left, Nusrat and Shirin claim it at the same instant.
+The hard case: a car has one seat left and two passengers claim it at the same instant.
 
 * Every pool mutation runs in one database transaction that first takes
   `SELECT … FROM pools WHERE id = $1 FOR UPDATE`. The second transaction blocks until
@@ -171,7 +171,7 @@ up in metrics (see README, *If Oi Tesla goes viral*).
 
 ## 8. Assumptions
 
-1. One Tesla per driver; capacity fixed per vehicle (Bullet = 3).
+1. One Tesla per driver; capacity fixed per vehicle (3 in v1).
 2. A passenger may have only one active ride at a time.
 3. A ride may request 1–3 seats (a passenger travelling with a friend or luggage).
 4. New riders can join a pool only before anyone is picked up.

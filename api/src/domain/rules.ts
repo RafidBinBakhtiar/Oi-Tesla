@@ -1,6 +1,6 @@
 /**
  * Business constants in one place. Every number here is documented in
- * docs/design.md; tests pin the Nusrat/Rafiq examples to these values.
+ * docs/design.md; tests pin the worked examples to these values.
  */
 export const RULES = {
   /** ৳30 flag fall per ride request. */

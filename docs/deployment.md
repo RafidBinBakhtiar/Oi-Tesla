@@ -25,7 +25,7 @@ Nothing here costs money. The API and web images are the same ones `docker compo
    | `JWT_SECRET` | a long random string (`openssl rand -hex 32`) |
    | `CORS_ORIGIN` | your Vercel URL, e.g. `https://oi-tesla.vercel.app` |
    | `NODE_ENV` | `production` |
-   | `SEED_ON_START` | `true` (idempotent; seeds the story cast) |
+   | `SEED_ON_START` | `true` (idempotent; seeds zones and sub-locations) |
 
    Render sets `PORT` itself. The API reads it.
 3. Health check path: `/health`.
@@ -44,7 +44,7 @@ curl https://<api>/health                 # {"status":"ok","database":"up",...}
 curl https://<api>/api/locations | head   # zones
 ```
 
-Then open the web URL, tap **Nusrat**, and run the demo script from the README.
+Then open the web URL, create a passenger account and follow the walkthrough in the README (§13).
 
 ## If free hosting is unavailable
 

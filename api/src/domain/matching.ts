@@ -115,7 +115,7 @@ export function evaluateJoin(pool: PoolSnapshot, candidate: RiderLeg): MatchResu
  * extra time ≤ maxDetourSeconds. Returns null if no order satisfies everyone.
  *
  * Pools hold at most a handful of riders, so trying every drop-off
- * permutation (≤ 3! = 6 for Bullet) is both optimal and cheap.
+ * permutation (≤ 3! = 6 for a 3-seat car) is both optimal and cheap.
  */
 export function planRoute(origin: Place, legs: RiderLeg[], maxDetourSeconds: number): RoutePlan | null {
   if (legs.length === 0) return { stops: [], totalDistanceM: 0, detours: [] };
