@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
-import { CastPicker } from '@/components/CastPicker';
 import { ApiError, homeFor, useSession } from '@/lib/session';
 import type { Role } from '@/lib/types';
 
@@ -57,7 +56,7 @@ export default function LoginPage() {
           <input
             inputMode="numeric"
             autoComplete="tel"
-            placeholder="01711000001"
+            placeholder="01XXXXXXXXX"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
             required
@@ -87,10 +86,6 @@ export default function LoginPage() {
             New here? <Link href="/signup">Create a passenger account</Link>
           </p>
         )}
-
-        <div className="divider" />
-        <p className="subtle">Or pick someone from the story (password oitesla123):</p>
-        <CastPicker role={role} />
       </form>
     </div>
   );

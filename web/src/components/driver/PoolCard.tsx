@@ -18,7 +18,7 @@ export function PoolCard({ pool, onChanged }: { pool: DriverPool | null; onChang
   const act = useAction(async (rider: PoolRider) => {
     if (!rider.nextAction) return;
     await request('POST', `/api/driver/rides/${rider.rideId}/${ACTION[rider.nextAction].path}`);
-    if (rider.nextAction === 'COMPLETE') await refreshUser(); // Bullet moved to the drop-off
+    if (rider.nextAction === 'COMPLETE') await refreshUser(); // the car moved to the drop-off
     onChanged();
   });
 
@@ -27,7 +27,7 @@ export function PoolCard({ pool, onChanged }: { pool: DriverPool | null; onChang
       <section className="card">
         <h2>Current trip</h2>
         <Empty icon="🛺" title="No riders yet">
-          Accept a request below. Compatible riders who book after that are pooled into Bullet automatically.
+          Accept a request below. Compatible riders who book after that are pooled into your car automatically.
         </Empty>
       </section>
     );
