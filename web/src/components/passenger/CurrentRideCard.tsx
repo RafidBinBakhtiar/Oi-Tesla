@@ -1,11 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FareBreakdown, RideProgress, RideStatusBadge, Route, SeatMeter, Timeline } from '@/components/RideBits';
 import { ErrorBanner } from '@/components/States';
 import { useAction } from '@/lib/hooks';
 import { useSession } from '@/lib/session';
 import type { RideDetail } from '@/lib/types';
+
+const SEARCH_TIMEOUT_S = 120;
+
+function SearchCountdown({ requestedAt }: { requestedAt: string }) {
+  const elapsed = () => Math.floor((Date.now() - new Date(requestedAt).getTime()) / 1000);
+  const [secs, setSecs] = useState(elapsed);
+
+  useEffect(() => {
+    setSecs(elapsed());
+    const id = setInterval(() => setSecs(elapsed()), 1000);
+    return () => clearInterval(id);
+  }, [requestedAt]);
+
+  const remaining = Math.max(0, SEARCH_TIMEOUT_S - secs);
+  const pct = Math.min(100, (secs / SEARCH_TIMEOUT_S) * 100);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span className="subtle">Searching for a driver…</span>
+        <span className="subtle num">{remaining}s</span>
+      </div>
+      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${pct}%`,
+            background: remaining < 20 ? 'var(--danger)' : 'var(--accent)',
+            borderRadius: 2,
+            transition: 'width 1s linear, background 0.3s',
+          }}
+        />
+      </div>
+      {remaining === 0 && <span className="subtle">Wrapping up — no driver found. Reloading…</span>}
+    </div>
+  );
+}
 
 function headline(ride: RideDetail) {
   const pool = ride.pool;
@@ -40,6 +77,7 @@ export function CurrentRideCard({ ride, onChanged }: { ride: RideDetail; onChang
       </div>
       <RideProgress status={ride.status} />
       <p>{headline(ride)}</p>
+      {ride.status === 'REQUESTED' && <SearchCountdown requestedAt={ride.requestedAt} />}
 
       {ride.pool && (
         <div className="item">

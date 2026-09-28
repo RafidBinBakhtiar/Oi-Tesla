@@ -158,12 +158,21 @@ export async function listMyRides(passengerId: string, limit: number) {
   return rides.map((r) => passengerRideView(r));
 }
 
+const SEARCH_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
 export async function getCurrentRide(passengerId: string) {
   const ride = await prisma.rideRequest.findFirst({
     where: { passengerId, status: { in: [...ACTIVE_RIDE_STATUSES] } },
     include: PASSENGER_RIDE_DETAIL_INCLUDE,
   });
-  return ride ? passengerRideDetailView(ride) : null;
+  if (!ride) return null;
+
+  if (ride.status === 'REQUESTED' && Date.now() - ride.requestedAt.getTime() > SEARCH_TIMEOUT_MS) {
+    await cancelRide(passengerId, ride.id, 'No driver found within 2 minutes — please try again');
+    return null;
+  }
+
+  return passengerRideDetailView(ride);
 }
 
 /** Scoped by passenger: someone else's ride id is indistinguishable from a missing one. */
