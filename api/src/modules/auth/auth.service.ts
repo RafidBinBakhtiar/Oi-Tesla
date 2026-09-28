@@ -33,6 +33,33 @@ export async function loginPassenger(phoneNumber: string, password: string) {
   return issue({ id: passenger.id, role: 'passenger' });
 }
 
+export async function signupDriver(input: {
+  name: string;
+  phoneNumber: string;
+  password: string;
+  licenseNumber: string;
+  vehicle: { modelName: string; plateNumber: string; capacity: number };
+}) {
+  const passwordHash = await hashPassword(input.password);
+  try {
+    const driver = await prisma.driver.create({
+      data: {
+        name: input.name,
+        phoneNumber: input.phoneNumber,
+        licenseNumber: input.licenseNumber,
+        passwordHash,
+        vehicle: { create: input.vehicle },
+      },
+    });
+    return issue({ id: driver.id, role: 'driver' });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw conflict('That phone number is already registered', 'PHONE_TAKEN');
+    }
+    throw err;
+  }
+}
+
 export async function loginDriver(phoneNumber: string, password: string) {
   const driver = await prisma.driver.findUnique({ where: { phoneNumber } });
   const ok = await verifyPassword(password, driver?.passwordHash ?? (await dummyHash));
