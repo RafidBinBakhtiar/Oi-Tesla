@@ -16,6 +16,14 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PATCH';
 
+interface DriverSignupInput {
+  name: string;
+  phoneNumber: string;
+  password: string;
+  licenseNumber: string;
+  vehicle: { modelName: string; plateNumber: string; capacity: number };
+}
+
 interface Session {
   apiUrl: string;
   /** False until the stored token has been checked against /me. */
@@ -24,6 +32,7 @@ interface Session {
   request: <T>(method: Method, path: string, body?: unknown) => Promise<T>;
   signIn: (role: Role, phoneNumber: string, password: string) => Promise<User>;
   signUp: (name: string, phoneNumber: string, password: string) => Promise<User>;
+  signUpDriver: (input: DriverSignupInput) => Promise<User>;
   signOut: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -136,9 +145,17 @@ export function SessionProvider({ apiUrl, children }: { apiUrl: string; children
     [request, adopt],
   );
 
+  const signUpDriver = useCallback(
+    async (input: DriverSignupInput) => {
+      const { token, user: u } = await request<{ token: string; user: User }>('POST', '/api/auth/drivers/signup', input);
+      return adopt(token, u);
+    },
+    [request, adopt],
+  );
+
   const value = useMemo(
-    () => ({ apiUrl, ready, user, request, signIn, signUp, signOut, refreshUser }),
-    [apiUrl, ready, user, request, signIn, signUp, signOut, refreshUser],
+    () => ({ apiUrl, ready, user, request, signIn, signUp, signUpDriver, signOut, refreshUser }),
+    [apiUrl, ready, user, request, signIn, signUp, signUpDriver, signOut, refreshUser],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { env } from '../../config/env';
 import { authOf, requireRole } from '../../middleware/auth';
-import { LoginSchema, SignupSchema } from './auth.schemas';
+import { DriverSignupSchema, LoginSchema, SignupSchema } from './auth.schemas';
 import * as auth from './auth.service';
 
 export const authRouter = Router();
@@ -24,6 +24,11 @@ authRouter.post('/passengers/signup', credentialLimiter, async (req, res) => {
 authRouter.post('/passengers/login', credentialLimiter, async (req, res) => {
   const { phoneNumber, password } = LoginSchema.parse(req.body);
   res.json(await auth.loginPassenger(phoneNumber, password));
+});
+
+authRouter.post('/drivers/signup', credentialLimiter, async (req, res) => {
+  const body = DriverSignupSchema.parse(req.body);
+  res.status(201).json(await auth.signupDriver(body));
 });
 
 authRouter.post('/drivers/login', credentialLimiter, async (req, res) => {

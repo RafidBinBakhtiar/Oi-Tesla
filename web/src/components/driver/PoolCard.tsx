@@ -18,7 +18,7 @@ export function PoolCard({ pool, onChanged }: { pool: DriverPool | null; onChang
   const act = useAction(async (rider: PoolRider) => {
     if (!rider.nextAction) return;
     await request('POST', `/api/driver/rides/${rider.rideId}/${ACTION[rider.nextAction].path}`);
-    if (rider.nextAction === 'COMPLETE') await refreshUser(); // the car moved to the drop-off
+    if (rider.nextAction === 'COMPLETE') await refreshUser(); // location updates after drop-off
     onChanged();
   });
 
