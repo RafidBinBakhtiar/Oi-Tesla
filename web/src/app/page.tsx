@@ -79,7 +79,7 @@ const SERVICES: { icon: ReactNode; title: string; body: string; href: string; ct
     title: 'Solo',
     body: 'Nobody going your way? You still get the whole Tesla at a fair, upfront price.',
     href: '/signup',
-    cta: 'Book a ride',
+    cta: 'Create an account',
   },
   {
     icon: Icon.wallet,
@@ -143,10 +143,10 @@ export default function Landing() {
             </p>
             <div className="row">
               <Link href="/signup" className="btn lp-btn">
-                Book a ride
+                Create an account
               </Link>
               <Link href="/login?role=driver" className="btn secondary lp-btn">
-                Drive with us
+                Sign in as a Tesla driver
               </Link>
             </div>
             <ul className="lp-facts">
@@ -380,7 +380,7 @@ export default function Landing() {
           </div>
           <nav aria-label="Ride">
             <h4>Ride</h4>
-            <Link href="/signup">Book a ride</Link>
+            <Link href="/signup">Create an account</Link>
             <a href="#fares">Fares</a>
             <a href="#safety">Safety</a>
           </nav>

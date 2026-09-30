@@ -159,12 +159,12 @@ export default function SignupPage() {
               {fieldError('vehicle.plateNumber')}
             </label>
             <label className="field">
-              Passenger capacity (seats)
+              Passenger capacity (seats) <span className="hint">1–6</span>
               <input
                 type="number"
                 inputMode="numeric"
                 min={1}
-                max={8}
+                max={6}
                 value={form.vehicleCapacity}
                 onChange={set('vehicleCapacity')}
                 required
