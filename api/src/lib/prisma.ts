@@ -17,6 +17,10 @@ function poolerSafeUrl(url: string): string {
 export const prisma = new PrismaClient({
   datasources: { db: { url: poolerSafeUrl(env.DATABASE_URL) } },
   log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+  // The driver-accept path runs ~12 sequential queries in one interactive
+  // transaction. Prisma's 5s default times out (P2028) when the app and the
+  // Neon database sit in different regions, so give transactions real headroom.
+  transactionOptions: { maxWait: 10_000, timeout: 20_000 },
 });
 
 /** A client bound to an interactive transaction. */
