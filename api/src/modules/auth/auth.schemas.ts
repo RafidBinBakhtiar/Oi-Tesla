@@ -25,6 +25,6 @@ export const DriverSignupSchema = z.object({
   vehicle: z.object({
     modelName: z.string().trim().min(2, 'Vehicle model is required').max(80),
     plateNumber: z.string().trim().min(2, 'Plate number is required').max(20),
-    capacity: z.coerce.number().int().min(1, 'Capacity must be at least 1').max(8),
+    capacity: z.coerce.number().int().min(1, 'Capacity must be at least 1').max(6, 'Capacity cannot exceed 6'),
   }),
 });

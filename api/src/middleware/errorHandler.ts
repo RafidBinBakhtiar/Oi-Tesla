@@ -3,6 +3,18 @@ import { ZodError } from 'zod';
 import { AppError } from '../lib/errors';
 import { logger } from '../lib/logger';
 
+/** Pulls the SQLSTATE and constraint name out of a Prisma raw-query error message. */
+function extractSqlState(err: unknown): string | undefined {
+  const msg = (err as { message?: string })?.message ?? '';
+  // Quotes arrive backslash-escaped inside Prisma's Rust error string.
+  return /code:\s*\\?"(\d{5})\\?"/.exec(msg)?.[1];
+}
+
+function extractConstraint(err: unknown): string | undefined {
+  const msg = (err as { message?: string })?.message ?? '';
+  return /constraint\s+\\?"([\w".]+?)\\?"/i.exec(msg)?.[1];
+}
+
 export const notFoundHandler: RequestHandler = (req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: `No route for ${req.method} ${req.path}` } });
 };
@@ -39,6 +51,23 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
   if (prismaCode === 'P2034' || prismaCode === '40P01') {
     res.status(409).json({ error: { code: 'RETRY', message: 'Concurrent update detected, please retry' } });
+    return;
+  }
+
+  // Postgres integrity-constraint violations (SQLSTATE class 23) surface through
+  // Prisma raw queries as unknown errors, so without this they become opaque
+  // 500s. Naming the constraint turns them into an actionable 422.
+  const pgState: string | undefined = err?.meta?.code ?? extractSqlState(err);
+  if (pgState?.startsWith('23')) {
+    const constraint = extractConstraint(err);
+    (req.log ?? logger).error({ err, constraint }, 'database constraint violation');
+    res.status(422).json({
+      error: {
+        code: 'CONSTRAINT_VIOLATION',
+        message: 'This action would break a data rule',
+        details: constraint ? { constraint } : undefined,
+      },
+    });
     return;
   }
 
