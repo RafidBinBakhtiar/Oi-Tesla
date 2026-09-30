@@ -2,9 +2,8 @@
 
 **Share a seat. Split the fare. Survive Dhaka traffic.**
 
-> 🎬 **Demo video (≤ 6 min):** _TODO — add Loom link_
-> 🌐 **Live deployment:** _TODO — add URL (see [docs/deployment.md](docs/deployment.md))_
-> 🏷️ **Release shown:** `release/v1.0.0`
+> 🎬 **Demo video (≤ 6 min):** (https://youtu.be/9w9QBDxQq5U)
+> 🌐 **Live deployment:** https://oitesla.vercel.app/
 
 Passengers book a seat in a three-seat electric car ("Tesla"). When someone else is heading the same way,
 the app decides in about a second whether they can share, re-prices both fares, and tells the driver which
