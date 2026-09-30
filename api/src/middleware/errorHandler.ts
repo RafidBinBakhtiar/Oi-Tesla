@@ -72,5 +72,12 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   (req.log ?? logger).error({ err }, 'unhandled error');
-  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong on our side' } });
+  // Safe classifier fields (no SQL, message body or stack) so a broken
+  // production request can be diagnosed from the client without log access.
+  const diag = {
+    name: (err as { name?: string })?.name,
+    prismaCode: prismaCode,
+    sqlState: pgState,
+  };
+  res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Something went wrong on our side', details: diag } });
 };
